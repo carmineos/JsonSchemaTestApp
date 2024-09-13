@@ -1,0 +1,24 @@
+{
+  "$id": "http://schema.org/dateRange.json",
+  "type": "object",
+  "customObject": "date-range",
+  "properties": {
+    "start": {
+      "title": "Start",
+      "type": "string",
+      "format": "date"
+    },
+    "end": {
+      "title": "End",
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "start",
+    "end"
+  ],
+  "ui": {
+    "customWidget": "date-range-picker"
+  }
+}

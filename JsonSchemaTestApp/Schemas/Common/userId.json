@@ -1,0 +1,9 @@
+{
+  "$id": "http://schema.org/userId.json",
+  "title": "User",
+  "type": "string",
+  "format": "uuid",
+  "ui": {
+    "customWidget": "user-autocomplete"
+  }
+}

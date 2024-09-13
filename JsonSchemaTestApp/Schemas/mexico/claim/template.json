@@ -1,0 +1,129 @@
+{
+  "graphQL": {
+    "query": "{ claimTypes(companyId: 3) { name:description }, currencies(companyId: 3) { name:description exchangeRate }, travelRequests(companyId: 3) { id  name } }",
+    "variables": null
+  },
+  "schema": {
+    "$id": "http://schema.org/mexico/claim.json",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "definitions": {
+      "claimTypes": {
+        "enumNames": [
+        ],
+        "enum": [
+        ]
+      },
+      "currencies": {
+        "enumNames": [
+        ],
+        "enum": [
+        ]
+      },
+      "travelRequests": {
+        "enumNames": [
+        ],
+        "enum": [
+        ]
+      }
+    },
+    "type": "object",
+    "properties": {
+      "runtimeData": {
+        "$ref": "http://schema.org/runtimeData.json"
+      },
+      "requestData": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "title": "Type",
+            "type": "object",
+            "$ref": "#/definitions/claimTypes"
+          },
+          "costCenter": {
+            "title": "Cost Center",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "http://schema.org/dateRange.json"
+          },
+          "currency": {
+            "title": "Reimbursment Currencies",
+            "type": "object",
+            "$ref": "#/definitions/currencies"
+          },
+          "exchangeRates": {
+            "title": "Exchange Rates",
+            "type": "array",
+            "$ref": "#/definitions/currencies"
+          },
+          "advanceAmount": {
+            "title": "Advance Amount",
+            "type": "number"
+          },
+          "advanceCurrency": {
+            "title": "Advance Currency",
+            "type": "string"
+          },
+
+          "totalAmount": {
+            "title": "Total Amount",
+            "type": "number"
+          },
+          "travelLinked": {
+            "title": "Travel Linked",
+            "type": "#/definitions/travelRequests"
+          },
+          "claims": {
+            "title": "Claims",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "title": "Claim Type",
+                  "type": "object",
+                  "$ref": "#/definitions/claimTypes"
+                },
+                "date": {
+                  "title": "Claim Date",
+                  "type": "string",
+                  "format": "date"
+                },
+                "description": {
+                  "title": "Description",
+                  "type": "string"
+                },
+                "currency": {
+                  "title": "Currency",
+                  "$ref": "#/definitions/currencies"
+                },
+                "cost": {
+                  "title": "Cost",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "date",
+                "description",
+                "currency",
+                "cost"
+              ]
+            }
+          }
+        },
+        "required": [
+          "type",
+          "period",
+          "currency",
+          "exchangeRate",
+          "advanceAmount"
+        ]
+      }
+    },
+    "required": [
+      "runtimeData",
+      "requestData"
+    ]
+  }
+}
