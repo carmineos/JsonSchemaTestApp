@@ -1,9 +1,13 @@
-﻿using JsonSchemaTestApp.JsonSchemaBuilder;
+﻿using Json.More;
+using Json.Schema;
+using JsonSchemaTestApp.JsonSchemaBuilder;
 using JsonSchemaTestApp.JsonSchemaDataProvider;
 using JsonSchemaTestApp.JsonSchemaLoader;
 using JsonSchemaTestApp.JsonSchemaValidator;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 IServiceCollection services = new ServiceCollection();
 
@@ -19,6 +23,8 @@ CancellationToken cancellationToken = CancellationToken.None;
 var jsonSchemaLoader = serviceProvider.GetRequiredService<IJsonSchemaLoader>();
 var jsonSchemaValidator = serviceProvider.GetRequiredService<IJsonSchemaValidator>();
 var jsonSchemaBuilder = serviceProvider.GetRequiredService<IJsonSchemaBuilder>();
+
+RegisterGlobalSchemas();
 
 string data =
     """
@@ -40,15 +46,15 @@ string data =
           }
         },
         "workflowData": {
-          "currentStep": "Draft",
+          "currentStep": "HR Review",
           "attachmentsCount": 2
         }
       },
       "requestData": {
         "reason": {
-          "name": "Sick Leave",
-          "affectingBalance": false,
-          "medicalCertificateRequired": true
+          "name": "Vacation",
+          "affectingBalance": true,
+          "medicalCertificateRequired": false
         },
         "leavePeriod": {
           "start": "2024-09-06",
@@ -60,18 +66,28 @@ string data =
     }
     """;
 
-var templateFile = File.ReadAllText(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "Schemas/mexico/absence/template.json"));
+var jsonData = JsonNode.Parse(data);
 
-var builtSchema = await jsonSchemaBuilder.BuildAsync(templateFile, null, cancellationToken);
+var filePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "schemas/mexico/absence/template.json");
 
-var errors = jsonSchemaValidator.Validate(data, builtSchema);
+var schemaRaw = JsonSchema.FromFile(filePath);
 
-foreach (var error in errors)
+var result = schemaRaw.Evaluate(jsonData);
+Console.WriteLine($"IsValid: {result.IsValid}");
+
+Console.WriteLine(result.Details.Where(d => !d.IsValid).ToJsonDocument().RootElement.GetRawText());
+
+Console.WriteLine(schemaRaw.Bundle().ToJsonDocument().RootElement.GetRawText());
+
+
+static void RegisterGlobalSchemas()
 {
-    Console.WriteLine(error.ToString());
+    var path = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "schemas/common/");
+
+    var files = Directory.GetFiles(path, "*.json");
+    foreach (var file in files)
+    {
+        var schema = JsonSchema.FromFile(file);
+        SchemaRegistry.Global.Register(schema);
+    }
 }
-
-// Patch bugged library ("readonly" instead of "readOnly")
-var patched = builtSchema.ToJson().Replace("readonly", "readOnly");
-
-Console.WriteLine(patched);

@@ -1,100 +1,106 @@
 {
-  "graphQL": {
-    "query": "{ absenceReasons(companyId: 3) { name:reason mustBeAdvanced } }",
-    "variables": null
-  },
-  "schema": {
-    "$id": "http://schema.org/mexico/absence.json",
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "definitions": {
-      "absenceReasons": {
-        "enumNames": [
-        ],
-        "enum": [
-        ]
-      },
-      "absenceTypes": {
-        "type": "string",
-        "enum": [
-          "Half Day",
-          "Full Day"
-        ]
-      }
-    },
-    "type": "object",
-    "properties": {
-      "runtimeData": {
-        "$ref": "http://schema.org/runtimeData.json"
-      },
-      "requestData": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "title": "Reason",
-            "type": "object",
-            "$ref": "#/definitions/absenceReasons"
-          },
-          "medicalCertificate": {
-            "title": "Medical Certificate",
-            "type": "string",
-            "format": "data-url"
-          },
-          "leavePeriod": {
-            "$ref": "http://schema.org/dateRange.json"
-          },
-          "type": {
-            "title": "Type",
-            "type": "string",
-            "$ref": "#/definitions/absenceTypes"
-          },
-          "traveledDays": {
-            "title": "Traveled Days",
-            "type": "number"
-          },
-          "pausePeriod": {
-            "$ref": "http://schema.org/dateRange.json"
-          },
-          "traveledDaysEditedByHR": {
-            "title": "Traveled Days Edited By HR",
-            "type": "number"
-          },
-          "travelDays": {
-            "title": "Travel Days",
-            "type": "boolean"
-          },
-          "departurePeriod": {
-            "$ref": "http://schema.org/dateRange.json"
-          },
-          "arrivalPeriod": {
-            "$ref": "http://schema.org/dateRange.json"
-          }
+  "$id": "/mexico/absence",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "absenceReasons": {
+      "enumNames": [
+        "Sick Leave",
+        "Vacation"
+      ],
+      "enum": [
+        {
+          "name": "Sick Leave",
+          "affectingBalance": false,
+          "medicalCertificateRequired": true
         },
-        "required": [
-          "reason",
-          "leavePeriod",
-          "type",
-          "traveledDays"
-        ]
-      }
+        {
+          "name": "Vacation",
+          "affectingBalance": true,
+          "medicalCertificateRequired": false
+        }
+      ]
     },
-    "required": [
-      "runtimeData",
-      "requestData"
-    ],
-    "allOf": [
-      {
-        "if": { "properties": { "runtimeData": { "properties": { "workflowData": { "properties": { "currentStep": { "not": { "const": "HR Review" } } } } } } } },
-        "then": { "properties": { "requestData": { "properties": { "traveledDaysEditedByHR": { "readOnly": true } } } } }
+    "absenceTypes": {
+      "type": "string",
+      "enum": [
+        "Half Day",
+        "Full Day"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "runtimeData": {
+      "$ref": "/common/runtimeData"
+    },
+    "requestData": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "object",
+          "$ref": "#/$defs/absenceReasons"
+        },
+        "medicalCertificate": {
+          "title": "Medical Certificate",
+          "type": "string",
+          "format": "data-url"
+        },
+        "leavePeriod": {
+          "$ref": "/common/dateRange"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "$ref": "#/$defs/absenceTypes"
+        },
+        "traveledDays": {
+          "title": "Traveled Days",
+          "type": "number"
+        },
+        "pausePeriod": {
+          "$ref": "/common/dateRange"
+        },
+        "traveledDaysEditedByHR": {
+          "title": "Traveled Days Edited By HR",
+          "type": "number"
+        },
+        "travelDays": {
+          "title": "Travel Days",
+          "type": "boolean"
+        },
+        "departurePeriod": {
+          "$ref": "/common/dateRange"
+        },
+        "arrivalPeriod": {
+          "$ref": "/common/dateRange"
+        }
       },
-      {
-        "if": { "properties": { "runtimeData": { "properties": { "workflowData": { "properties": { "currentStep": { "const": "Approved" } } } } } } },
-        "then": { "properties": { "requestData": { "readOnly": true } } }
-      },
-      {
-        "if": { "properties": { "requestData": { "properties": { "reason": { "properties": { "medicalCertificateRequired": { "const": true } } } } } } },
-        "then": { "properties": { "requestData": { "required": [ "medicalCertificate" ] } } },
-        "else": { "properties": { "requestData": { "properties": { "medicalCertificate": { "readOnly": true } } } } }
-      }
-    ]
-  }
+      "required": [
+        "reason",
+        "leavePeriod",
+        "type",
+        "traveledDays"
+      ]
+    }
+  },
+  "required": [
+    "runtimeData",
+    "requestData"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "runtimeData": { "properties": { "workflowData": { "properties": { "currentStep": { "not": { "const": "HR Review" } } } } } } } },
+      "then": { "properties": { "requestData": { "properties": { "traveledDaysEditedByHR": { "readOnly": true } } } } }
+    },
+    {
+      "if": { "properties": { "runtimeData": { "properties": { "workflowData": { "properties": { "currentStep": { "const": "Approved" } } } } } } },
+      "then": { "properties": { "requestData": { "readOnly": true } } }
+    },
+    {
+      "if": { "properties": { "requestData": { "properties": { "reason": { "properties": { "medicalCertificateRequired": { "const": true } } } } } } },
+      "then": { "properties": { "requestData": { "required": [ "medicalCertificate" ] } } },
+      "else": { "properties": { "requestData": { "properties": { "medicalCertificate": { "readOnly": true } } } } }
+    }
+  ]
 }

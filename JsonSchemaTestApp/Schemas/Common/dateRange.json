@@ -1,5 +1,5 @@
 {
-  "$id": "http://schema.org/dateRange.json",
+  "$id": "/common/dateRange",
   "type": "object",
   "customObject": "date-range",
   "properties": {

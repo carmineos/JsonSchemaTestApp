@@ -1,5 +1,5 @@
 {
-  "$id": "http://schema.org/userId.json",
+  "$id": "/common/userId",
   "title": "User",
   "type": "string",
   "format": "uuid",
