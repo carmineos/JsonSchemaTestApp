@@ -1,6 +1,6 @@
 {
   "graphQL": {
-    "query": "{ absenceReasons(companyId: 3) { name:reason mustBeAdvanced } }",
+    "query": "{ absenceReasons(companyId: 3) { name:reason affectingBalance } }",
     "variables": null
   },
   "schema": {
@@ -8,10 +8,26 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "definitions": {
       "absenceReasons": {
-        "enumNames": [
-        ],
-        "enum": [
-        ]
+        "type": "object",
+        "properties": {
+          "name": {
+            "title": "Reason Name",
+            "type": "string"
+          },
+          "affectingBalance": {
+            "title": "Affecting Balance",
+            "type": "boolean"
+          },
+          "medicalCertificateRequired": {
+            "title": "Medical Certificate Required",
+            "type": "boolean"
+          }
+        },
+        "readOnly": true,
+        "required": [ "name", "affectingBalance", "medicalCertificateRequired" ],
+        "ui": {
+          "customWidget": "enum-object-picker"
+        }
       },
       "absenceTypes": {
         "type": "string",
@@ -31,7 +47,6 @@
         "properties": {
           "reason": {
             "title": "Reason",
-            "type": "object",
             "$ref": "#/definitions/absenceReasons"
           },
           "medicalCertificate": {

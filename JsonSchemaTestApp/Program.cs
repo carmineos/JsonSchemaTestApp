@@ -71,7 +71,7 @@ foreach (var error in errors)
     Console.WriteLine(error.ToString());
 }
 
-// Patch bugged library ("readonly" instead of "readOnly")
+// Attempt to Draft4 -> Draft7
 var patched = builtSchema.ToJson().Replace("readonly", "readOnly");
 
 Console.WriteLine(patched);
