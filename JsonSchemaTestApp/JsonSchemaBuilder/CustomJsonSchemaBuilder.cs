@@ -1,35 +1,56 @@
 ﻿using JsonSchemaTestApp.JsonSchemaDataProvider;
-using JsonSchemaTestApp.JsonSchemaLoader;
-using Newtonsoft.Json.Linq;
-using NJsonSchema;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace JsonSchemaTestApp.JsonSchemaBuilder;
 
 public class CustomJsonSchemaBuilder : IJsonSchemaBuilder
 {
-    private readonly IJsonSchemaLoader _jsonSchemaLoader;
     private readonly IJsonSchemaDataProvider _jsonSchemaDataProvider;
 
     private const string SCHEMA_KEY = "schema";
+    private const string SCHEMA_DEFINITIONS_KEY = "definitions";
+    private const string SCHEMA_ENUM_KEY = "enum";
+
+
     private const string GRAPHQL_KEY = "graphQL";
     private const string GRAPHQL_QUERY_KEY = "query";
     private const string GRAPHQL_VARIABLES_KEY = "variables";
     private const string GRAPHQL_DATA_KEY = "data";
 
-    public CustomJsonSchemaBuilder(IJsonSchemaDataProvider jsonSchemaDataProvider, IJsonSchemaLoader jsonSchemaLoader)
+    public CustomJsonSchemaBuilder(IJsonSchemaDataProvider jsonSchemaDataProvider)
     {
         _jsonSchemaDataProvider = jsonSchemaDataProvider;
-        _jsonSchemaLoader = jsonSchemaLoader;
     }
 
-    public async Task<JsonSchema> BuildAsync(string inputJsonString, Dictionary<string, object?> additionalVariables, CancellationToken cancellationToken)
+    public async Task<JsonObject> BuildAsync(string inputJsonString, Dictionary<string, object?> additionalVariables, CancellationToken cancellationToken)
     {
-        JObject inputJson = JObject.Parse(inputJsonString);
+        JsonObject rootObject = JsonNode.Parse(inputJsonString)!.AsObject();
 
-        var schema = await _jsonSchemaLoader.FromJsonAsync(inputJson[SCHEMA_KEY]!.ToString(), cancellationToken);
+        JsonObject schemaObject = rootObject[SCHEMA_KEY]!.AsObject();
+        JsonObject graphQLObject = rootObject[GRAPHQL_KEY]!.AsObject();
 
-        var query = inputJson[GRAPHQL_KEY][GRAPHQL_QUERY_KEY]!.ToString();
-        var variables = inputJson[GRAPHQL_KEY][GRAPHQL_VARIABLES_KEY]!.ToObject<Dictionary<string, object?>>() ?? [];
+        var dataObject = await GetQueryData(graphQLObject, additionalVariables, cancellationToken);
+
+        BuildDefinitionsAsEnum(schemaObject, dataObject);
+
+        return schemaObject;
+    }
+
+    private async Task<string> GetQueryData(JsonObject graphQLObject, Dictionary<string, object?> additionalVariables, CancellationToken cancellationToken)
+    {
+        string query = graphQLObject[GRAPHQL_QUERY_KEY]!.AsValue().GetValue<string>();
+
+        JsonNode? variablesNode = graphQLObject[GRAPHQL_VARIABLES_KEY];
+
+        Dictionary<string, object?> variables = null;
+        
+        if (variablesNode is JsonObject variablesObject)
+        {
+            variables = JsonSerializer.Deserialize<Dictionary<string, object?>>(variablesObject);
+        }
+
+        variables ??= [];
 
         if (additionalVariables is { Count: > 0 })
         {
@@ -41,83 +62,28 @@ public class CustomJsonSchemaBuilder : IJsonSchemaBuilder
 
         var dataJsonString = await _jsonSchemaDataProvider.QueryDataAsync(query, variables, cancellationToken);
 
-        BuildDefinitionsAsEnum(schema, dataJsonString);
-        //BuildDefinitionsAsOneOf(schema, dataJsonString);
-
-        return schema;
+        return dataJsonString;
     }
 
-    private static void BuildDefinitionsAsEnum(JsonSchema schema, string data, string tokenName = "name")
+
+    private static void BuildDefinitionsAsEnum(JsonObject schemaObject, string data)
     {
-        var dataJson = JObject.Parse(data);
+        var definitions = schemaObject[SCHEMA_DEFINITIONS_KEY]!.AsObject();
 
-        var dataJsonRoot = dataJson[GRAPHQL_DATA_KEY] as JObject;
+        var dataObject = JsonNode.Parse(data)!.AsObject()[GRAPHQL_DATA_KEY]!.AsObject();
 
-        foreach (var property in dataJsonRoot.Properties())
+        foreach (var (propertyName, propertyNode) in dataObject)
         {
-            var definition = schema.Definitions[property.Name];
-            definition.Enumeration.Clear();
+            var definition = definitions[propertyName];
 
-            JToken propertyValue = property.Value;
-            if (propertyValue.Type == JTokenType.Array)
-            {
-                var enumNames = new JArray();
+            if (definition is not JsonObject definitionObject)
+                continue;
 
-                foreach (var item in propertyValue.Children())
-                {
-                    if(item is not JObject itemObject)
-                        continue;
-                    definition.Enumeration.Add(itemObject); 
-                    enumNames.Add(item.SelectToken(tokenName));
-                }
+            if(propertyNode is not JsonArray propertyArray)
+                continue;
 
-                definition.ExtensionData ??= new Dictionary<string, object>();
-                definition.ExtensionData["enumNames"] = enumNames;
-            }
+            definition[SCHEMA_ENUM_KEY] = propertyArray.DeepClone();
         }
-    }
-
-    private void BuildDefinitionsAsOneOf(JsonSchema schema, string data, string tokenName = "name")
-    {
-        var dataJson = JObject.Parse(data);
-
-        var dataJsonRoot = dataJson[GRAPHQL_DATA_KEY] as JObject;
-
-        foreach (var property in dataJsonRoot.Properties())
-        {
-            var definition = schema.Definitions[property.Name];
-            definition.OneOf.Clear();
-
-            JToken propertyValue = property.Value;
-
-            if (propertyValue.Type == JTokenType.Array)
-            {
-                var oneOfArray = new JArray();
-                foreach (var item in propertyValue.Children())
-                {
-                    if (item is not JObject itemObject)
-                        continue;
-
-                    var label = item.SelectToken(tokenName);
-
-                    var oneOf = new JObject()
-                    {
-                        ["title"] = label,
-                        ["const"] = itemObject,
-                    };
-
-                    oneOfArray.Add(oneOf);
-                }
-
-                definition.ExtensionData ??= new Dictionary<string, object?>();
-                definition.ExtensionData["oneOf"] = oneOfArray;
-            }
-        }
-    }
-
-    private static void BuildRuntimeData(JsonSchema schema)
-    {
-        // TODO: Inject runtime data
     }
 }
 

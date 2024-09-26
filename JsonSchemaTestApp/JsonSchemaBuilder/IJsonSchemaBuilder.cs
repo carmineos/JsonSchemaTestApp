@@ -1,8 +1,9 @@
 ﻿using NJsonSchema;
+using System.Text.Json.Nodes;
 
 namespace JsonSchemaTestApp.JsonSchemaBuilder;
 
 public interface IJsonSchemaBuilder
 {
-    Task<JsonSchema> BuildAsync(string inputJsonString, Dictionary<string, object> additionalVariables, CancellationToken cancellationToken);
+    Task<JsonObject> BuildAsync(string inputJsonString, Dictionary<string, object> additionalVariables, CancellationToken cancellationToken);
 }
