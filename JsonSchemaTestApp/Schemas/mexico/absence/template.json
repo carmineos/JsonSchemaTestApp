@@ -1,7 +1,10 @@
 {
   "$id": "/mexico/absence",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$defs": {
+  "definitions": {
+    "dateRange": {
+      "$ref": "/common/dateRange"
+    },
     "absenceReasons": {
       "type": "object",
       "properties": {
@@ -43,7 +46,7 @@
       "properties": {
         "reasonDetails": {
           "title": "Reason",
-          "$ref": "#/$defs/absenceReasons"
+          "$ref": "#/definitions/absenceReasons"
         },
         "medicalCertificate": {
           "title": "Medical Certificate",
@@ -51,21 +54,21 @@
           "format": "data-url"
         },
         "leavePeriod": {
-          "$ref": "/common/dateRange"
+          "$ref": "#/definitions/dateRange"
         },
         "type": {
           "title": "Type",
-          "$ref": "#/$defs/absenceTypes"
+          "$ref": "#/definitions/absenceTypes"
         },
         "travelDays": {
           "title": "Travel Days",
           "type": "boolean"
         },
         "departurePeriod": {
-          "$ref": "/common/dateRange"
+          "$ref": "#/definitions/dateRange"
         },
         "arrivalPeriod": {
-          "$ref": "/common/dateRange"
+          "$ref": "#/definitions/dateRange"
         }
       },
       "required": [

@@ -68,7 +68,7 @@ public class CustomObjectKeyword : IJsonSchemaKeyword
 
         if (startDate > endDate)
             evaluation.Results.Fail("start", 
-                ErrorMessages.GetExclusiveMaximum(context.Options.Culture)
+                ErrorMessages.GetMaximum(context.Options.Culture)
                 .ReplaceToken("received", startValue)
                 .ReplaceToken("limit", endValue));
     }
@@ -92,7 +92,7 @@ public class CustomObjectKeyword : IJsonSchemaKeyword
 
         if (startDate > endDate)
             evaluation.Results.Fail("start",
-                ErrorMessages.GetExclusiveMaximum(context.Options.Culture)
+                ErrorMessages.GetMaximum(context.Options.Culture)
                 .ReplaceToken("received", startValue)
                 .ReplaceToken("limit", endValue));
     }

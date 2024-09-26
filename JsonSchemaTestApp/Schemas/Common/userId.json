@@ -1,9 +1,0 @@
-{
-  "$id": "/common/userId",
-  "title": "User",
-  "type": "string",
-  "format": "uuid",
-  "ui": {
-    "customWidget": "user-autocomplete"
-  }
-}
