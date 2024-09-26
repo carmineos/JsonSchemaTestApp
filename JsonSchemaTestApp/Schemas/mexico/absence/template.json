@@ -41,9 +41,8 @@
     "requestData": {
       "type": "object",
       "properties": {
-        "reason": {
+        "reasonDetails": {
           "title": "Reason",
-          "type": "object",
           "$ref": "#/$defs/absenceReasons"
         },
         "medicalCertificate": {
@@ -56,19 +55,7 @@
         },
         "type": {
           "title": "Type",
-          "type": "string",
           "$ref": "#/$defs/absenceTypes"
-        },
-        "traveledDays": {
-          "title": "Traveled Days",
-          "type": "number"
-        },
-        "pausePeriod": {
-          "$ref": "/common/dateRange"
-        },
-        "traveledDaysEditedByHR": {
-          "title": "Traveled Days Edited By HR",
-          "type": "number"
         },
         "travelDays": {
           "title": "Travel Days",
@@ -82,10 +69,25 @@
         }
       },
       "required": [
-        "reason",
+        "reasonDetails",
         "leavePeriod",
         "type",
-        "traveledDays"
+        "travelDays"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "travelDays": { "const": true },
+              "reasonDetails": {
+                "properties": { "affectingBalance": { "const": true } }
+              }
+            }
+          },
+          "then": {
+            "required": [ "departurePeriod", "arrivalPeriod" ]
+          }
+        }
       ]
     }
   },

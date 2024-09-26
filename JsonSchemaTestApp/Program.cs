@@ -32,7 +32,7 @@ string data =
     """
     {
       "requestData": {
-        "reason": {
+        "reasonDetails": {
           "name": "Vacation",
           "affectingBalance": true,
           "medicalCertificateRequired": false
@@ -42,7 +42,15 @@ string data =
           "end": "2024-09-07"
         },
         "type": "Half Day",
-        "traveledDays": 3
+        "travelDays": true,
+        "departurePeriod": {
+          "start": "2024-09-06",
+          "end": "2024-09-07"
+        },
+        "arrivalPeriod": {
+          "start": "2024-09-06",
+          "end": "2024-09-07"
+        }
       }
     }
     """;
