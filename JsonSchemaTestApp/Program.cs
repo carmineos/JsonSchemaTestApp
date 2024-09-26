@@ -26,30 +26,11 @@ var jsonSchemaBuilder = serviceProvider.GetRequiredService<IJsonSchemaBuilder>()
 
 RegisterGlobalSchemas();
 
+
+
 string data =
     """
     {
-      "runtimeData": {
-        "userData": {
-          "profiles": [
-            "SysAdmin",
-            "HR"
-          ],
-          "roles": {
-            "IsLineManagerOfRequestor": false,
-            "IsUnitManagerOfRequestor": false,
-            "IsSecondLevelOfRequestor": false,
-            "IsDepartmentManager": [
-              "Department1"
-            ],
-            "IsManager": false
-          }
-        },
-        "workflowData": {
-          "currentStep": "HR Review",
-          "attachmentsCount": 2
-        }
-      },
       "requestData": {
         "reason": {
           "name": "Vacation",
@@ -70,9 +51,12 @@ var jsonData = JsonNode.Parse(data);
 
 var filePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "schemas/mexico/absence/template.json");
 
-var schemaRaw = JsonSchema.FromFile(filePath);
+var jsonSerializerOptions = new JsonSerializerOptions();
+jsonSerializerOptions.Converters.Add(new CustomObjectKeywordJsonConverter());
 
-var result = schemaRaw.Evaluate(jsonData);
+var schemaRaw = JsonSchema.FromFile(filePath, jsonSerializerOptions);
+
+var result = schemaRaw.Evaluate(jsonData, new EvaluationOptions { ProcessCustomKeywords = true });
 Console.WriteLine($"IsValid: {result.IsValid}");
 
 Console.WriteLine(result.Details.Where(d => !d.IsValid).ToJsonDocument().RootElement.GetRawText());
@@ -82,12 +66,20 @@ Console.WriteLine(schemaRaw.Bundle().ToJsonDocument().RootElement.GetRawText());
 
 static void RegisterGlobalSchemas()
 {
+    SchemaKeywordRegistry.Register<CustomObjectKeyword>();
+
+    Vocabulary CustomObjectVocabulary = new Vocabulary("http://mydates.com/vocabulary", typeof(CustomObjectKeyword));
+    VocabularyRegistry.Register(CustomObjectVocabulary);
+
     var path = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "schemas/common/");
 
     var files = Directory.GetFiles(path, "*.json");
     foreach (var file in files)
     {
-        var schema = JsonSchema.FromFile(file);
+        var jsonSerializerOptions = new JsonSerializerOptions();
+        jsonSerializerOptions.Converters.Add(new CustomObjectKeywordJsonConverter());
+
+        var schema = JsonSchema.FromFile(file, jsonSerializerOptions);
         SchemaRegistry.Global.Register(schema);
     }
 }

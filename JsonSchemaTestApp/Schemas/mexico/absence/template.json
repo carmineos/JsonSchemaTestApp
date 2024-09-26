@@ -3,10 +3,18 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$defs": {
     "absenceReasons": {
-      "enumNames": [
-        "Sick Leave",
-        "Vacation"
-      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "affectingBalance": {
+          "type": "boolean"
+        },
+        "medicalCertificateRequired": {
+          "type": "boolean"
+        }
+      },
       "enum": [
         {
           "name": "Sick Leave",
@@ -30,9 +38,6 @@
   },
   "type": "object",
   "properties": {
-    "runtimeData": {
-      "$ref": "/common/runtimeData"
-    },
     "requestData": {
       "type": "object",
       "properties": {
@@ -85,22 +90,6 @@
     }
   },
   "required": [
-    "runtimeData",
     "requestData"
-  ],
-  "allOf": [
-    {
-      "if": { "properties": { "runtimeData": { "properties": { "workflowData": { "properties": { "currentStep": { "not": { "const": "HR Review" } } } } } } } },
-      "then": { "properties": { "requestData": { "properties": { "traveledDaysEditedByHR": { "readOnly": true } } } } }
-    },
-    {
-      "if": { "properties": { "runtimeData": { "properties": { "workflowData": { "properties": { "currentStep": { "const": "Approved" } } } } } } },
-      "then": { "properties": { "requestData": { "readOnly": true } } }
-    },
-    {
-      "if": { "properties": { "requestData": { "properties": { "reason": { "properties": { "medicalCertificateRequired": { "const": true } } } } } } },
-      "then": { "properties": { "requestData": { "required": [ "medicalCertificate" ] } } },
-      "else": { "properties": { "requestData": { "properties": { "medicalCertificate": { "readOnly": true } } } } }
-    }
   ]
 }
