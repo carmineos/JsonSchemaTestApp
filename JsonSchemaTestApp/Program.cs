@@ -1,34 +1,35 @@
 ﻿using Json.More;
+using Json.Path;
 using Json.Schema;
-using Json.Schema.Serialization;
 using JsonSchemaTestApp.JsonSchemaBuilder;
 using JsonSchemaTestApp.JsonSchemaDataProvider;
-using JsonSchemaTestApp.JsonSchemaLoader;
 using JsonSchemaTestApp.JsonSchemaValidator;
 using Microsoft.Extensions.DependencyInjection;
-using System.Buffers;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 IServiceCollection services = new ServiceCollection();
 
-services.AddScoped<IJsonSchemaLoader, CustomJsonSchemaLoader>();
-services.AddScoped<IJsonSchemaValidator, CustomJsonSchemaValidator>();
 services.AddScoped<IJsonSchemaBuilder, CustomJsonSchemaBuilder>();
-services.AddScoped<IJsonSchemaDataProvider, MockJsonSchemaDataProvider>();
+services.AddScoped<IJsonSchemaDataProvider, GraphQLJsonSchemaDataProvider>();
+
+services.AddGraphQL().AddQueryType<MyQueries>();
 
 var serviceProvider = services.BuildServiceProvider();
 
 CancellationToken cancellationToken = CancellationToken.None;
 
-var jsonSchemaLoader = serviceProvider.GetRequiredService<IJsonSchemaLoader>();
-var jsonSchemaValidator = serviceProvider.GetRequiredService<IJsonSchemaValidator>();
 var jsonSchemaBuilder = serviceProvider.GetRequiredService<IJsonSchemaBuilder>();
 
 RegisterGlobalSchemas();
 
+// Read Schema
+var schemaFilePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "schemas/mexico/absence/template.json");
+var schemaText = File.ReadAllText(schemaFilePath);
 
+var schemaBuilder = serviceProvider.GetRequiredService<IJsonSchemaBuilder>();
+var builtSchemaNode = await schemaBuilder.BuildAsync(schemaText, null, cancellationToken);
 
 string data =
     """
@@ -59,30 +60,29 @@ string data =
 
 var jsonData = JsonNode.Parse(data);
 
-var filePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "schemas/mexico/absence/template.json");
-
 var jsonSerializerOptions = new JsonSerializerOptions();
 jsonSerializerOptions.Converters.Add(new CustomObjectKeywordJsonConverter());
 
-var schemaRaw = JsonSchema.FromFile(filePath, jsonSerializerOptions);
+var jsonSchemaRaw = JsonSchema.FromText(builtSchemaNode.ToJsonString(), jsonSerializerOptions);
+jsonSchemaRaw.PatchBaseUri();
 
-var result = schemaRaw.Evaluate(jsonData, new EvaluationOptions { ProcessCustomKeywords = true, OutputFormat = OutputFormat.List });
+var result = jsonSchemaRaw.Evaluate(jsonData, new EvaluationOptions {  ProcessCustomKeywords = true, OutputFormat = OutputFormat.List });
 Console.WriteLine($"IsValid: {result.IsValid}");
 Console.WriteLine(GetErrors(result));
 Console.WriteLine();
 
-var bundle = schemaRaw.Bundle();
+var bundle = jsonSchemaRaw.Bundle();
 var bundleText = bundle.ToJsonDocument().RootElement.GetRawText();
 
 Console.WriteLine("BUNDLE");
 Console.WriteLine(bundleText);
 Console.WriteLine();
 
-var formlyBundle = GetFormlyBundle(schemaRaw);
+var formlyBundle = jsonSchemaRaw.GetFormlyBundle();
 
 Console.WriteLine("CUSTOM BUNDLE");
 Console.WriteLine(formlyBundle);
-Console.WriteLine(); 
+Console.WriteLine();
 
 var formlyBundleSchema = JsonSchema.FromText(formlyBundle, jsonSerializerOptions);
 
@@ -103,7 +103,7 @@ static void RegisterGlobalSchemas()
 {
     SchemaKeywordRegistry.Register<CustomObjectKeyword>();
 
-    Vocabulary CustomObjectVocabulary = new Vocabulary("http://mydates.com/vocabulary", typeof(CustomObjectKeyword));
+    Vocabulary CustomObjectVocabulary = new Vocabulary("http://localhost/vocabulary", typeof(CustomObjectKeyword));
     VocabularyRegistry.Register(CustomObjectVocabulary);
 
     var path = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "schemas/common/");
@@ -115,130 +115,64 @@ static void RegisterGlobalSchemas()
         jsonSerializerOptions.Converters.Add(new CustomObjectKeywordJsonConverter());
 
         var schema = JsonSchema.FromFile(file, jsonSerializerOptions);
+        schema.PatchBaseUri();
+
         SchemaRegistry.Global.Register(schema);
     }
 }
 
+
 // Ugly but works (formly doesn't support remote schemas like $ref)
-static string GetFormlyBundle(JsonSchema jsonSchema)
+
+
+public static class JsonSchemaExtensions
 {
-    const string IdKeywordName = IdKeyword.Name;
-    const string DefsKeywordName = DefsKeyword.Name;
-    const string DefinitionsKeywordName = DefinitionsKeyword.Name;
-    const string RefKeywordName = RefKeyword.Name;
-
-    var bundle = jsonSchema.Bundle();
-
-    var schemaId  = jsonSchema.GetId()!.OriginalString;
-
-    var jsonSerializerOptions = new JsonSerializerOptions();
-    jsonSerializerOptions.Converters.Add(new CustomObjectKeywordJsonConverter());
-
-    var schemaObject = JsonSerializer.SerializeToNode(bundle.ToJsonDocument(), jsonSerializerOptions);
-
-    var schemaDefsObject = schemaObject![DefsKeywordName]!.AsObject();
-
-    JsonObject outputRoot = null!;
-    Dictionary<string, JsonNode> outputDefinitions = [];
-
-    // Among all the $defs, the one with $id equals to the input, becames the root
-    // all the other $defs become definitions of the root
-    foreach (var (propertyName, propertyNode) in schemaDefsObject)
+    public static JsonSchema PatchBaseUri(this JsonSchema schema)
     {
-        if (propertyNode![IdKeywordName]!.GetValue<string>() == schemaId)
-        {
-            outputRoot = propertyNode.AsObject();
-        }
-        else
-        {
-            var node = propertyNode.AsObject();
-            outputDefinitions.Add(node[IdKeywordName]!.GetValue<string>(), node);
-            node.Remove(IdKeywordName);
-        }
+        var schemaId = schema.GetId();
+        schema.BaseUri = new Uri($"https://localhost/{schemaId}");
+        return schema;
     }
 
-    var rootDefinitions = outputRoot[DefinitionsKeywordName].AsObject();
-
-    // Iterate all the root definitions and for those with a $ref to a $defs, replace the object with the actual one
-    foreach (var (propertyName, propertyNode) in rootDefinitions.DeepClone().AsObject())
+    public static string GetFormlyBundle(this JsonSchema jsonSchema)
     {
-        if (propertyNode![RefKeywordName] is not JsonValue refValue)
-            continue;
+        const string IdKeywordName = IdKeyword.Name;
+        const string DefsKeywordName = DefsKeyword.Name;
+        const string DefinitionsKeywordName = DefinitionsKeyword.Name;
+        const string RefKeywordName = RefKeyword.Name;
 
-        var refValueString = refValue.GetValue<string>();
-        if (outputDefinitions.TryGetValue(refValueString, out JsonNode? node))
+        var jsonSerializerOptions = new JsonSerializerOptions();
+        jsonSerializerOptions.Converters.Add(new CustomObjectKeywordJsonConverter());
+
+        var schemaObject = JsonSerializer.SerializeToNode(jsonSchema.Bundle().ToJsonDocument(), jsonSerializerOptions);
+
+        var schemaId = jsonSchema.GetId()!.OriginalString;
+
+        var rootPath = JsonPath.Parse($"$['{DefsKeywordName}'][?(@['{IdKeywordName}'] == '{schemaId}')]");
+        var externalDefinitionsPath = JsonPath.Parse($"$['{DefsKeywordName}'][?(@['{IdKeywordName}'] != '{schemaId}')]");
+
+        JsonNode root = rootPath.Evaluate(schemaObject).Matches.FirstOrDefault()?.Value!;
+        IEnumerable<JsonNode?> externalDefinitions = externalDefinitionsPath.Evaluate(schemaObject).Matches.Select(n => n.Value);
+
+        foreach (var externalDefinition in externalDefinitions)
         {
-            var clonedNode = node!.DeepClone();
-            clonedNode.AsObject().Remove(IdKeywordName);
-            rootDefinitions[propertyName] = clonedNode;
-        }
-    }
+            // Find the internal definitions which have a $ref to an external definition
+            var externalDefinitionId = externalDefinition![IdKeywordName]!.AsValue().GetString();
+            var internalDefinitionPath = JsonPath.Parse($"$['{DefinitionsKeywordName}'][?(@['{RefKeywordName}'] == '{externalDefinitionId}')]");
 
-    return outputRoot.ToJsonString();
+            var internalDefinitions = internalDefinitionPath.Evaluate(root).Matches.Select(n => n.Value);
+
+            // Replace the internal definition with a copy of the external definition
+            foreach(var internalDefinition in internalDefinitions.ToArray())
+            {
+                // Clone the external definition and remove the $id
+                var definitionCopy = externalDefinition.DeepClone();
+                definitionCopy.AsObject().Remove(IdKeywordName);
+
+                internalDefinition!.ReplaceWith(definitionCopy);
+            }
+        }
+
+        return root.ToString();
+    }
 }
-
-//static JsonSchema CustomBundle(JsonSchema jsonSchema, EvaluationOptions? options = null)
-//{
-//    options = EvaluationOptions.From(options ?? EvaluationOptions.Default);
-
-//    options.SchemaRegistry.Register(jsonSchema);
-
-//    var schemasToSearch = new List<JsonSchema>();
-//    var searchedSchemas = new List<JsonSchema>(); // uses reference equality
-//    var externalSchemas = new Dictionary<string, JsonSchema>();
-//    var bundledReferences = new List<Uri>();
-//    var referencesToCheck = new List<Uri> { jsonSchema.BaseUri };
-
-//    while (referencesToCheck.Count != 0)
-//    {
-//        var nextReference = referencesToCheck[0];
-//        referencesToCheck.RemoveAt(0);
-
-//        var resolved = options.SchemaRegistry.Get(nextReference);
-//        if (resolved is not JsonSchema resolvedSchema)
-//            throw new NotSupportedException("Bundling is not supported for non-schema root documents");
-
-//        if (!bundledReferences.Contains(nextReference))
-//        {
-//            externalSchemas.Add(Guid.NewGuid().ToString("N")[..10], resolvedSchema);
-//            bundledReferences.Add(nextReference);
-//        }
-//        schemasToSearch.Add(resolvedSchema);
-
-//        while (schemasToSearch.Count != 0)
-//        {
-//            var schema = schemasToSearch[0];
-//            schemasToSearch.RemoveAt(0);
-//            if (searchedSchemas.Contains(schema)) continue;
-
-//            if (schema.Keywords == null) continue;
-
-//            searchedSchemas.Add(schema);
-//            using (var owner = MemoryPool<JsonSchema>.Shared.Rent())
-//            {
-//                foreach (var subschema in schema.GetSubschemas(owner))
-//                {
-//                    schemasToSearch.Add(subschema);
-//                }
-//            }
-
-//            // this handles references that are already bundled.
-//            if (schema.BaseUri != nextReference && !bundledReferences.Contains(schema.BaseUri))
-//                bundledReferences.Add(schema.BaseUri);
-
-//            var reference = schema.GetRef();
-//            if (reference != null)
-//            {
-//                var newUri = new Uri(schema.BaseUri, reference);
-//                if (newUri == schema.BaseUri) continue; // same document
-
-//                referencesToCheck.Add(newUri);
-//            }
-//        }
-//    }
-
-//    return new JsonSchemaBuilder()
-//        .Id(jsonSchema.BaseUri.OriginalString + "(bundled)")
-//        .Defs(externalSchemas)
-//        .Ref(jsonSchema.BaseUri);
-//}

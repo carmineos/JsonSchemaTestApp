@@ -1,4 +1,6 @@
-﻿using JsonSchemaTestApp.JsonSchemaDataProvider;
+﻿using Json.Patch;
+using Json.Pointer;
+using JsonSchemaTestApp.JsonSchemaDataProvider;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -23,7 +25,7 @@ public class CustomJsonSchemaBuilder : IJsonSchemaBuilder
         _jsonSchemaDataProvider = jsonSchemaDataProvider;
     }
 
-    public async Task<JsonObject> BuildAsync(string inputJsonString, Dictionary<string, object?> additionalVariables, CancellationToken cancellationToken)
+    public async Task<JsonObject> BuildAsync(string inputJsonString, Dictionary<string, object?>? additionalVariables, CancellationToken cancellationToken)
     {
         JsonObject rootObject = JsonNode.Parse(inputJsonString)!.AsObject();
 
@@ -32,18 +34,18 @@ public class CustomJsonSchemaBuilder : IJsonSchemaBuilder
 
         var dataObject = await GetQueryData(graphQLObject, additionalVariables, cancellationToken);
 
-        BuildDefinitionsAsEnum(schemaObject, dataObject);
+        var result = BuildDefinitionsAsEnum(schemaObject, dataObject);
 
-        return schemaObject;
+        return result.AsObject();
     }
 
-    private async Task<string> GetQueryData(JsonObject graphQLObject, Dictionary<string, object?> additionalVariables, CancellationToken cancellationToken)
+    private async Task<string> GetQueryData(JsonObject graphQLObject, Dictionary<string, object?>? additionalVariables, CancellationToken cancellationToken)
     {
         string query = graphQLObject[GRAPHQL_QUERY_KEY]!.AsValue().GetValue<string>();
 
         JsonNode? variablesNode = graphQLObject[GRAPHQL_VARIABLES_KEY];
 
-        Dictionary<string, object?> variables = null;
+        Dictionary<string, object?>? variables = null!;
         
         if (variablesNode is JsonObject variablesObject)
         {
@@ -66,24 +68,23 @@ public class CustomJsonSchemaBuilder : IJsonSchemaBuilder
     }
 
 
-    private static void BuildDefinitionsAsEnum(JsonObject schemaObject, string data)
+    private static JsonNode BuildDefinitionsAsEnum(JsonObject schemaObject, string data)
     {
-        var definitions = schemaObject[SCHEMA_DEFINITIONS_KEY]!.AsObject();
-
         var dataObject = JsonNode.Parse(data)!.AsObject()[GRAPHQL_DATA_KEY]!.AsObject();
+
+        List<PatchOperation> operations = [];
 
         foreach (var (propertyName, propertyNode) in dataObject)
         {
-            var definition = definitions[propertyName];
-
-            if (definition is not JsonObject definitionObject)
-                continue;
-
-            if(propertyNode is not JsonArray propertyArray)
-                continue;
-
-            definition[SCHEMA_ENUM_KEY] = propertyArray.DeepClone();
+            var pointer = JsonPointer.Create(SCHEMA_DEFINITIONS_KEY, propertyName, SCHEMA_ENUM_KEY);
+            var patchOperation = PatchOperation.Replace(pointer, propertyNode);
+            operations.Add(patchOperation);
         }
+
+        var patch = new JsonPatch(operations);
+        var patchResult = patch.Apply(schemaObject);
+
+        return patchResult.Result!;
     }
 }
 

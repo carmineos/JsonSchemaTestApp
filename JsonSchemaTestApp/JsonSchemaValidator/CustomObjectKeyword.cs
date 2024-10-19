@@ -1,9 +1,6 @@
 ﻿using Json.Schema;
-using Newtonsoft.Json.Linq;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace JsonSchemaTestApp.JsonSchemaValidator;
 
@@ -67,10 +64,10 @@ public class CustomObjectKeyword : IJsonSchemaKeyword
         var endDate = DateOnly.Parse(endValue);
 
         if (startDate > endDate)
-            evaluation.Results.Fail("start", 
-                ErrorMessages.GetMaximum(context.Options.Culture)
-                .ReplaceToken("received", startValue)
-                .ReplaceToken("limit", endValue));
+            evaluation.Results.Fail("end", 
+                ErrorMessages.GetMinimum(context.Options.Culture)
+                .ReplaceToken("received", endValue)
+                .ReplaceToken("limit", startValue));
     }
 
     private void DateTimeRangeEvaluator(KeywordEvaluation evaluation, EvaluationContext context)
@@ -91,10 +88,10 @@ public class CustomObjectKeyword : IJsonSchemaKeyword
         var endDate = DateOnly.Parse(endValue);
 
         if (startDate > endDate)
-            evaluation.Results.Fail("start",
-                ErrorMessages.GetMaximum(context.Options.Culture)
-                .ReplaceToken("received", startValue)
-                .ReplaceToken("limit", endValue));
+            evaluation.Results.Fail("end",
+                ErrorMessages.GetMinimum(context.Options.Culture)
+                .ReplaceToken("received", endValue)
+                .ReplaceToken("limit", startValue));
     }
 }
 

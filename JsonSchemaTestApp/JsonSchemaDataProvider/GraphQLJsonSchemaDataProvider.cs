@@ -1,63 +1,43 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Text.Json;
+﻿using HotChocolate;
+using HotChocolate.Execution;
 
 namespace JsonSchemaTestApp.JsonSchemaDataProvider;
 
-//public class GraphQLJsonSchemaDataProvider : IJsonSchemaDataProvider
-//{
-//    private readonly IRequestExecutorResolver _requestResolver;
-
-//    public GraphQLJsonSchemaDataProvider(IRequestExecutorResolver requestResolver)
-//    {
-//        _requestResolver = requestResolver;
-//    }
-
-//    public async Task<string> QueryDataAsync(string query, Dictionary<string, object> variables, CancellationToken cancellationToken)
-//    {
-//        var executor = await _requestResolver.GetRequestExecutorAsync(cancellationToken: cancellationToken);
-
-//        var result = await executor.ExecuteAsync(query, variables, cancellationToken);
-
-//        return result.ToJson();
-//    }
-//}
-
-public class MockJsonSchemaDataProvider : IJsonSchemaDataProvider
+public class GraphQLJsonSchemaDataProvider : IJsonSchemaDataProvider
 {
-    public Task<string> QueryDataAsync(string query, Dictionary<string, object> variables, CancellationToken cancellationToken)
-    {
-        var result = 
-            """
-            {
-              "data": {
-                "absenceReasons": [
-                  {
-                    "name": "Sick Leave",
-                    "affectingBalance": false,
-                    "medicalCertificateRequired": true
-                  },
-                  {
-                    "name": "Vacation",
-                    "affectingBalance": true,
-                    "medicalCertificateRequired": false
-                  }
-                ]
-              }
-            }
-            """;
+    private readonly IRequestExecutorResolver _requestResolver;
 
-        return Task.FromResult(result);
+    public GraphQLJsonSchemaDataProvider(IRequestExecutorResolver requestResolver)
+    {
+        _requestResolver = requestResolver;
     }
 
+    public async Task<string> QueryDataAsync(string query, Dictionary<string, object?> variables, CancellationToken cancellationToken)
+    {
+        var executor = await _requestResolver.GetRequestExecutorAsync(cancellationToken: cancellationToken);
 
-    //<PackageReference Include = "GraphQL.Client" Version="6.1.0" />
-    //<PackageReference Include = "GraphQL.Client.Serializer.SystemTextJson" Version="6.1.0" />
-    //private async Task<JObject> ExecuteGraphQLQueryAsync(string query, string endpoint)
-    //{
-    //    var graphQLClient = new GraphQLHttpClient(endpoint, new SystemTextJsonSerializer());
-    //    var request = new GraphQLRequest { Query = query };
-    //    var response = await graphQLClient.SendQueryAsync<object>(request);
-    //    var element = (JsonElement)response.Data;
-    //    return JObject.Parse(element.GetRawText());
-    //}
+        var result = await executor.ExecuteAsync(query, variables, cancellationToken);
+
+        return result.ToJson();
+    }
+}
+
+public class MyQueries
+{
+    private static readonly List<AbsenceReason> _absenceReasons =
+        [
+            new AbsenceReason { CompanyId = 3, Name= "Sick Leave", AffectingBalance= false, MedicalCertificateRequired = true },
+            new AbsenceReason { CompanyId = 3, Name= "Vacation", AffectingBalance= true, MedicalCertificateRequired = false }
+        ];
+
+    public IQueryable<AbsenceReason> AbsenceReasons(int companyId)
+         => _absenceReasons.Where(a => a.CompanyId == companyId).AsQueryable();
+}
+
+public class AbsenceReason
+{
+    public int CompanyId { get; set; }
+    public string Name { get; set; } = default!;
+    public bool AffectingBalance { get; set; }
+    public bool MedicalCertificateRequired { get; set; }
 }
