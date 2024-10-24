@@ -18,7 +18,9 @@
     "start",
     "end"
   ],
-  "ui": {
-    "customWidget": "date-time-range-picker"
+  "widget": {
+    "formlyConfig": {
+      "type": "date-time-range-picker"
+    }
   }
 }

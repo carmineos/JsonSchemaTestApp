@@ -44,7 +44,7 @@ string data =
           "start": "2024-09-06",
           "end": "2024-09-07"
         },
-        "type": "Half Day",
+        "type": "Morning",
         "travelDays": true,
         "departurePeriod": {
           "start": "2024-09-06",

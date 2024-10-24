@@ -30,8 +30,18 @@ public class MyQueries
             new AbsenceReason { CompanyId = 3, Name= "Vacation", AffectingBalance= true, MedicalCertificateRequired = false }
         ];
 
+    private static readonly List<AbsenceType> _absenceTypes =
+        [
+            new AbsenceType { Name= "Morning" },
+            new AbsenceType { Name= "Afternoon" },
+            new AbsenceType { Name= "Entire Day" }
+        ];
+
     public IQueryable<AbsenceReason> AbsenceReasons(int companyId)
          => _absenceReasons.Where(a => a.CompanyId == companyId).AsQueryable();
+
+    public IQueryable<AbsenceType> AbsenceTypes()
+         => _absenceTypes.AsQueryable();
 }
 
 public class AbsenceReason
@@ -40,4 +50,9 @@ public class AbsenceReason
     public string Name { get; set; } = default!;
     public bool AffectingBalance { get; set; }
     public bool MedicalCertificateRequired { get; set; }
+}
+
+public class AbsenceType
+{
+    public string Name { get; set; }
 }

@@ -1,4 +1,5 @@
-﻿using Json.Patch;
+﻿using Json.More;
+using Json.Patch;
 using Json.Pointer;
 using JsonSchemaTestApp.JsonSchemaDataProvider;
 using System.Text.Json;
@@ -13,6 +14,9 @@ public class CustomJsonSchemaBuilder : IJsonSchemaBuilder
     private const string SCHEMA_KEY = "schema";
     private const string SCHEMA_DEFINITIONS_KEY = "definitions";
     private const string SCHEMA_ENUM_KEY = "enum";
+    private const string SCHEMA_TYPE_KEY = "type";
+    private const string SCHEMA_TYPE_OBJECT_KEY = "object";
+    private const string SCHEMA_TYPE_STRING_KEY = "string";
 
 
     private const string GRAPHQL_KEY = "graphQL";
@@ -76,9 +80,33 @@ public class CustomJsonSchemaBuilder : IJsonSchemaBuilder
 
         foreach (var (propertyName, propertyNode) in dataObject)
         {
-            var pointer = JsonPointer.Create(SCHEMA_DEFINITIONS_KEY, propertyName, SCHEMA_ENUM_KEY);
-            var patchOperation = PatchOperation.Replace(pointer, propertyNode);
-            operations.Add(patchOperation);
+            var enumNode = propertyNode;
+
+            var typePointer = JsonPointer.Create(SCHEMA_DEFINITIONS_KEY, propertyName, SCHEMA_TYPE_KEY);
+
+            if (typePointer.TryEvaluate(schemaObject, out JsonNode? typeNode))
+            {
+                var typeValue = typeNode!.AsValue().GetString();
+
+                if (typeValue == SCHEMA_TYPE_STRING_KEY)
+                {
+                    enumNode = enumNode!
+                        .AsArray()
+                        .Select(p => p.AsObject().First().Value)
+                        .ToJsonArray();
+                }
+            }
+
+            var enumPointer = JsonPointer.Create(SCHEMA_DEFINITIONS_KEY, propertyName, SCHEMA_ENUM_KEY);
+
+            if (enumPointer.TryEvaluate(schemaObject, out _))
+            {
+                operations.Add(PatchOperation.Replace(enumPointer, enumNode));
+            }
+            else
+            {
+                operations.Add(PatchOperation.Add(enumPointer, enumNode));
+            }
         }
 
         var patch = new JsonPatch(operations);

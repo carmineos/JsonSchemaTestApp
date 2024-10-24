@@ -1,6 +1,6 @@
 {
   "graphQL": {
-    "query": "{ absenceReasons(companyId: 3) { name affectingBalance medicalCertificateRequired } }",
+    "query": "{ absenceReasons(companyId: 3) { name affectingBalance medicalCertificateRequired } absenceTypes { name } }",
     "variables": null
   },
   "schema": {
@@ -22,15 +22,10 @@
           "medicalCertificateRequired": {
             "type": "boolean"
           }
-        },
-        "enum": [ "${absenceReasons}" ]
+        }
       },
       "absenceTypes": {
-        "type": "string",
-        "enum": [
-          "Half Day",
-          "Full Day"
-        ]
+        "type": "string"
       }
     },
     "type": "object",
