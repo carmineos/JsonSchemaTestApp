@@ -41,8 +41,14 @@ public class CustomObjectKeyword : IJsonSchemaKeyword
         }
         else
         {
-            throw new NotImplementedException();
+            return new KeywordConstraint(Name, UnknownEvaluator);
         }
+    }
+
+    private void UnknownEvaluator(KeywordEvaluation evaluation, EvaluationContext context)
+    {
+        evaluation.MarkAsSkipped();
+        return;
     }
 
     private void DateRangeEvaluator(KeywordEvaluation evaluation, EvaluationContext context)
