@@ -1,0 +1,26 @@
+{
+  "$id": "/common/timeRange",
+  "type": "object",
+  "customObject": "time-range",
+  "properties": {
+    "start": {
+      "title": "Start",
+      "type": "string",
+      "format": "time"
+    },
+    "end": {
+      "title": "End",
+      "type": "string",
+      "format": "time"
+    }
+  },
+  "required": [
+    "start",
+    "end"
+  ],
+  "widget": {
+    "formlyConfig": {
+      "type": "time-range-picker"
+    }
+  }
+}

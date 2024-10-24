@@ -1,0 +1,25 @@
+{
+  "$id": "/common/user",
+  "type": "object",
+  "customObject": "user",
+  "properties": {
+    "id": {
+      "title": "User Id",
+      "type": "string",
+      "format": "uuid"
+    },
+    "displayName": {
+      "title": "Display Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "displayName"
+  ],
+  "widget": {
+    "formlyConfig": {
+      "type": "user-picker"
+    }
+  }
+}
